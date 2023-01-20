@@ -1,9 +1,50 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>PlayVideo</title>
-    </head>
-    <body>
-        <video controls autoplay width="800px" src="video/0.mp4"></video>
-    </body>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlayVideo</title>
+</head>
+<body style="display: flex; flex-direction: column; background-color: grey;">
+    <video id="video" preload width="1600" height="900" src="video/0.mp4"></video>
+    <audio id="audio" controls preload style="width: 1600px" src="video/a.mp3"></audio>
+
+    <script>
+        var myvideo = document.getElementById('video');
+        var myaudio = document.getElementById('audio');
+
+        var last_video_duration = 0.0;
+        var currentVideo = 0;
+        var change_time_state = true;
+
+        myaudio.onplay = function(){
+            myvideo.play();
+            if (change_time_state){
+                myvideo.currentTime = myaudio.currentTime;
+                change_time_state = false;
+            }
+        };
+
+        myaudio.onpause = function(){
+            myvideo.pause();
+            change_time_state = true;
+        };
+
+        function checkVideoTime(){
+            if(myaudio.currentTime > myvideo.duration + last_video_duration){
+                last_video_duration += myvideo.duration;
+                currentVideo += 1;
+                myvideo.src = 'video/' + currentVideo + '.mp4';
+                myvideo.load();
+                myvideo.currentTime = myaudio.currentTime - last_video_duration;
+                myvideo.play();
+            };
+        };
+
+        setInterval(checkVideoTime, 1000);
+
+    </script>
+
+</body>
 </html>
