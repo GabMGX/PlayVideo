@@ -7,43 +7,67 @@
     <title>PlayVideo</title>
 </head>
 <body style="display: flex; flex-direction: column; background-color: grey;">
-    <video id="video" preload width="1600" height="900" src="video/0.mp4"></video>
-    <audio id="audio" controls preload style="width: 1600px" src="video/a.mp3"></audio>
-
+    <video id="video" controls autoplay="true"></video>
     <script>
-        var myvideo = document.getElementById('video');
-        var myaudio = document.getElementById('audio');
 
-        var last_video_duration = 0.0;
-        var currentVideo = 0;
-        var change_time_state = true;
+        (async() => {
 
-        myaudio.onplay = function(){
-            myvideo.play();
-            if (change_time_state){
-                myvideo.currentTime = myaudio.currentTime;
-                change_time_state = false;
-            }
-        };
+            const mediaSource = new MediaSource();
+            const video = document.getElementById('video');
 
-        myaudio.onpause = function(){
-            myvideo.pause();
-            change_time_state = true;
-        };
+            const urls = ['video/0.mp4', 'video/1.mp4', 'video/2.mp4'];
 
-        function checkVideoTime(){
-            if(myaudio.currentTime > myvideo.duration + last_video_duration){
-                last_video_duration += myvideo.duration;
-                currentVideo += 1;
-                myvideo.src = 'video/' + currentVideo + '.mp4';
-                myvideo.load();
-                myvideo.currentTime = myaudio.currentTime - last_video_duration;
-                myvideo.play();
+            const request = url => fetch(url).then(response => response.arrayBuffer());
+
+            const files = await Promise.all(urls.map(request));
+
+            const mimeCodec = "video/mp4; codecs=avc1.42E01E, mp4a.40.2";
+
+
+            const media = await Promise.all(files.map(file => {
+                return new Promise(resolve => {
+                    let media = document.createElement("video");
+                    let blobURL = URL.createObjectURL(new Blob([file]));
+                    media.onloadedmetadata = async e => {
+                        resolve({
+                            mediaDuration: media.duration,
+                            mediaBuffer: file
+                        })
+                    }
+                    media.src = blobURL;
+                })
+            }));
+
+            console.log(media);
+
+            mediaSource.addEventListener("sourceopen", sourceOpen);
+
+            video.src = URL.createObjectURL(mediaSource);
+
+            async function sourceOpen(event) {
+
+                if (MediaSource.isTypeSupported(mimeCodec)){
+                    const sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
+
+                    for (let chunk of media){
+                        await new Promise(resolve => {
+                            sourceBuffer.appendBuffer(chunk.mediaBuffer);
+                            sourceBuffer.onupdateend = e => {
+                                sourceBuffer.onupdateend = null;
+                                sourceBuffer.timestampOffset += chunk.mediaDuration;
+                                console.log(mediaSource.duration);
+                                resolve();
+                            }
+                        })
+                    }
+
+                    mediaSource.endOfStream();
+                }
+                else {
+                    console.warn(mimeCodec + "not supported");
+                }
             };
-        };
-
-        setInterval(checkVideoTime, 1000);
-
+        })()
     </script>
 
 </body>
